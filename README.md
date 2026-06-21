@@ -1,78 +1,90 @@
-# SPRAWDZANIE KODU
+# 🔍 Sprawdzanie Kodu
 
-Prosty system do kolejkowania i sprawdzania publicznych repozytoriow GitHub. Uzytkownik loguje sie, wysyla link do repozytorium, a osobny worker pobiera kod, uruchamia go w Dockerze i zapisuje wynik testu w bazie.
+Prosty system do kolejkowania i sprawdzania publicznych repozytoriów GitHub. Użytkownik loguje się, wysyła link do repozytorium, a osobny worker pobiera kod, uruchamia go w Dockerze i zapisuje wyniki.
 
-## Co robi aplikacja
+---
 
-- rejestruje uzytkownikow,
-- loguje uzytkownikow i zwraca JWT,
-- przyjmuje link do repozytorium GitHub,
-- zapisuje test do kolejki w MySQL,
-- worker pobiera najstarszy oczekujacy test,
-- klonuje repozytorium przez `git clone`,
-- uruchamia test w kontenerze Docker z Pythonem,
-- instaluje `requirements.txt`, jesli istnieje,
-- sprawdza skladnie przez `python -m compileall .`,
-- zapisuje kroki testu i wynik w bazie,
-- CLI pozwala logowac sie, rejestrowac, dodawac repo i ogladac wyniki.
+## 🚀 Co robi aplikacja
 
-## Wymagania
+- ✅ Rejestruje użytkowników
+- 🔐 Loguje użytkowników i zwraca JWT
+- 📎 Przyjmuje link do repozytorium GitHub
+- 📋 Zapisuje test do kolejki w MySQL
+- ⚙️ Worker pobiera najstarszy oczekujący test
+- 📦 Klonuje repozytorium przez `git clone`
+- 🐳 Uruchamia test w kontenerze Docker z Pythonem
+- 📚 Instaluje `requirements.txt`, jeśli istnieje
+- ✔️ Sprawdza składnię przez `python -m compileall .`
+- 💾 Zapisuje kroki testu i wynik w bazie
+- 💻 CLI pozwala logować się, rejestrować, dodawać repo i oglądać wyniki
 
-- Python 3.12 lub nowszy,
-- MySQL na `127.0.0.1:3306`,
-- baza danych `testy`,
-- Git,
-- Docker Desktop,
-- zainstalowane zaleznosci Pythona projektu.
+---
 
-Docker Desktop musi byc uruchomiony przed startem workera. Sama komenda `docker` jest tylko klientem, a worker potrzebuje dzialajacego Docker Engine.
+## 📋 Wymagania
 
-## Bezpieczenstwo Dockera
+| Wymaganie | Wersja |
+|-----------|--------|
+| Python | 3.12+ |
+| MySQL | `127.0.0.1:3306` |
+| Database | `testy` |
+| Git | ✓ |
+| Docker Desktop | ✓ (musi być uruchomiony!) |
 
-Worker uruchamia cudzy kod w kontenerze Docker, a nie bezposrednio na systemie hosta. Kontener jest odpalany z limitami:
+> ⚠️ **Ważne:** Docker Desktop musi być uruchomiony przed startem workera. Sama komenda `docker` jest tylko klientem, a worker potrzebuje działającego Docker Engine.
 
-```text
---memory 512m
---cpus 1
---pids-limit 128
---security-opt no-new-privileges
+---
+
+## 🔒 Bezpieczeństwo Dockera
+
+Worker uruchamia cudzej kod w kontenerze Docker, a nie bezpośrednio na systemie hosta. Kontener jest odpalany z limitami:
+
+```
+--memory 512m          # Limit pamięci RAM
+--cpus 1               # Limit CPU
+--pids-limit 128       # Limit liczby procesów
+--security-opt no-new-privileges  # Brak podnoszenia uprawnień
 ```
 
-To ogranicza zuzycie RAM, CPU i liczbe procesow oraz blokuje podnoszenie uprawnien w kontenerze.
+**⚠️ Ważne:** Etap `pip install -r requirements.txt` potrzebuje internetu, więc kontener podczas instalacji zależności ma dostęp do sieci. To oznacza, że złośliwe zależności nadal mogą wykonywać kod w tym momencie.
 
-Wazne: etap `pip install -r requirements.txt` potrzebuje internetu, wiec kontener podczas instalacji zaleznosci ma dostep do sieci. To oznacza, ze zlosliwe zaleznosci nadal moga wykonywac kod w trakcie instalacji i wykonywac requesty sieciowe. Kontener nie ma dostepu do dysku hosta poza zamontowanym folderem tymczasowego repozytorium, ale nie jest to pelny sandbox klasy produkcyjnej.
-
-Nie nalezy dodawac do `docker run`:
-
-```text
+**❌ Nie dodawaj:**
+```
 --privileged
 -v /var/run/docker.sock:/var/run/docker.sock
 -v C:\:/host
 ```
 
-Docelowo bezpieczniejszy wariant to rozdzielenie etapow: instalacja zaleznosci z siecia, a pozniejsze uruchamianie testow/kompilacji z `--network none`.
+**💡 Przyszłość:** Bezpieczniejszy wariant to rozdzielenie etapów: instalacja zależności z sieci, a późniejsze uruchamianie testów/kompilacji z `--network none`.
 
-## Konfiguracja
+---
 
-W katalogu projektu utworz plik `.env`:
+## ⚙️ Konfiguracja
+
+### Plik `.env`
+
+W katalogu projektu utwórz plik `.env`:
 
 ```env
 SECRET_KEY=twoj_sekretny_klucz
 ```
 
-Aktualne polaczenie z baza jest ustawione w `app/baza.py`:
+### Połączenie z bazą danych
 
-```text
-host: 127.0.0.1 / localhost
-port: 3306
-user: root
+Aktualne połączenie z bazą jest ustawione w `app/baza.py`:
+
+```
+host:     127.0.0.1 / localhost
+port:     3306
+user:     root
 password: root
-db: testy
+database: testy
 ```
 
-## Tabele w bazie
+---
 
-Aplikacja korzysta z tabel uzytkownikow oraz dwoch tabel do testow repozytoriow.
+## 🗄️ Tabele w bazie danych
+
+### `repo_tests` — główne testy repozytoriów
 
 ```sql
 CREATE TABLE repo_tests (
@@ -83,6 +95,8 @@ CREATE TABLE repo_tests (
     result ENUM('success','fail') NULL
 );
 ```
+
+### `repo_test_steps` — kroki testu
 
 ```sql
 CREATE TABLE repo_test_steps (
@@ -99,32 +113,27 @@ CREATE TABLE repo_test_steps (
 );
 ```
 
-## Uruchomienie backendu
+---
 
-Z glownego katalogu projektu:
+## 🏃 Uruchomienie
+
+### 1️⃣ Backend (FastAPI)
+
+Z głównego katalogu projektu:
 
 ```powershell
 uvicorn main:app --reload
 ```
 
-Backend powinien byc dostepny pod:
+**Backend będzie dostępny pod:**
+- API: `http://127.0.0.1:8000`
+- Dokumentacja: `http://127.0.0.1:8000/docs` (Swagger UI)
 
-```text
-http://127.0.0.1:8000
-```
+### 2️⃣ Worker
 
-Dokumentacja FastAPI:
+Najpierw uruchom Docker Desktop i poczekaj, aż Docker Engine wystartuje.
 
-```text
-http://127.0.0.1:8000/docs
-```
-
-## Uruchomienie workera
-
-Najpierw uruchom Docker Desktop i poczekaj, az Docker Engine wystartuje.
-
-Mozesz sprawdzic:
-
+Sprawdzenie statusu:
 ```powershell
 docker info
 ```
@@ -135,17 +144,17 @@ Potem w osobnym terminalu:
 python -m app.testowanie
 ```
 
-Worker dziala jako osobny proces. Backend tylko dodaje testy do kolejki, a worker sam pobiera rekordy ze statusem `czeka`.
+> 📌 Worker działa jako osobny proces. Backend tylko dodaje testy do kolejki, a worker sam pobiera rekordy ze statusem `czeka`.
 
-## Endpointy
+---
 
-### Rejestracja
+## 🔌 API Endpointy
+
+### 📝 Rejestracja
 
 ```http
 POST /api-log/register
 ```
-
-Body:
 
 ```json
 {
@@ -155,13 +164,11 @@ Body:
 }
 ```
 
-### Logowanie
+### 🔑 Logowanie
 
 ```http
 POST /api-log/login
 ```
-
-Body:
 
 ```json
 {
@@ -170,170 +177,164 @@ Body:
 }
 ```
 
-Odpowiedz zawiera token JWT:
+**Odpowiedź zawiera token JWT:**
 
 ```json
 {
   "status": "ok",
-  "details": "logowanie przebieglo pomyslnie",
-  "token": "..."
+  "details": "logowanie przebiegło pomyślnie",
+  "token": "eyJ..."
 }
 ```
 
-### Dodanie repozytorium do kolejki
+### 📦 Dodanie repozytorium do kolejki
 
 ```http
 POST /api-operacje/sprawdz
 ```
 
-Header:
-
+**Header:**
 ```http
 Authorization: Bearer <JWT>
 ```
 
-Body:
-
+**Body:**
 ```json
 {
   "link": "https://github.com/user/repo"
 }
 ```
 
-### Lista testow uzytkownika
+### 📊 Lista testów użytkownika
 
 ```http
 GET /api-operacje/wyciagnij
 ```
 
-Header:
-
+**Header:**
 ```http
 Authorization: Bearer <JWT>
 ```
 
-Zwraca ostatnie testy uzytkownika.
+Zwraca ostatnie testy użytkownika.
 
-### Szczegoly testu
+### 🔎 Szczegóły testu
 
 ```http
 GET /api-operacje/szczegoly?id=<ID_TESTU>
 ```
 
-Header:
-
+**Header:**
 ```http
 Authorization: Bearer <JWT>
 ```
 
-Zwraca kroki danego testu, jesli test nalezy do zalogowanego uzytkownika.
+Zwraca kroki danego testu (jeśli test należy do zalogowanego użytkownika).
 
-## CLI
+---
 
-Frontend CMD znajduje sie w katalogu `front`.
+## 💻 CLI — Frontend
+
+Frontend CMD znajduje się w katalogu `front`.
 
 ### Rejestracja
-
 ```powershell
 python front/main.py -r
 ```
 
 ### Logowanie
-
 ```powershell
 python front/main.py -l
 ```
 
-Po zalogowaniu token jest zapisywany lokalnie w:
-
-```text
+Token jest zapisywany lokalnie w:
+```
 front/token.json
 ```
 
-Ten plik jest ignorowany przez Git.
+> 🔒 Ten plik jest ignorowany przez Git.
 
 ### Dodanie repozytorium do testu
-
 ```powershell
 python front/main.py -t https://github.com/user/repo
 ```
 
-### Lista wynikow
-
+### Lista wyników
 ```powershell
 python front/main.py -w
 ```
 
-CLI pobiera liste testow, pokazuje je jako numerowana liste, a potem pozwala wybrac test do wyswietlenia szczegolow.
+CLI pobiera listę testów, pokazuje je jako numerowaną listę, a potem pozwala wybrać test do wyświetlenia szczegółów.
 
-## Jak dziala worker
+---
+
+## ⚙️ Jak działa worker
 
 Worker wykonuje uproszczony test Python-only:
 
-1. pobiera najstarszy rekord z `repo_tests`, gdzie `status = 'czeka'`,
-2. ustawia status glownego testu na `w_trakcie`,
-3. klonuje repozytorium przez `git clone`,
-4. zapisuje krok `pobranie projektu`,
-5. odpala Docker:
+1. 📥 Pobiera najstarszy rekord z `repo_tests`, gdzie `status = 'czeka'`
+2. ⏱️ Ustawia status głównego testu na `w_trakcie`
+3. 📂 Klonuje repozytorium przez `git clone`
+4. 📝 Zapisuje krok `pobranie projektu`
+5. 🐳 Odpala Docker:
+   ```
+   python:3.12-slim
+   ```
+6. 🔧 W kontenerze z limitami wykonuje:
+   ```sh
+   if [ -f requirements.txt ]; then pip install -r requirements.txt; fi && python -m compileall .
+   ```
+7. 💾 Zapisuje wynik kroku
+8. ✅ Ustawia `repo_tests.status = 'gotowe'`
+9. 📊 Ustawia `repo_tests.result = 'success'` albo `fail`
+10. 🗑️ Usuwa katalog tymczasowy
 
-```text
-python:3.12-slim
-```
+---
 
-6. w kontenerze z limitami wykonuje:
+## 🧪 Przykładowy test
 
-```sh
-if [ -f requirements.txt ]; then pip install -r requirements.txt; fi && python -m compileall .
-```
-
-7. zapisuje wynik kroku,
-8. ustawia `repo_tests.status = 'gotowe'`,
-9. ustawia `repo_tests.result = 'success'` albo `fail`,
-10. usuwa katalog tymczasowy.
-
-## Przykladowy test
-
-Mozesz sprawdzic prostym repozytorium lub gistem:
+Możesz sprawdzić prostym repozytorium lub cistem:
 
 ```powershell
 python front/main.py -t https://gist.github.com/hbisneto/42349b9d709387e90c93dfeee4a105e1.git
 ```
 
-Potem:
+Potem wyświetl wyniki:
 
 ```powershell
 python front/main.py -w
 ```
 
-## Typowe problemy
+---
 
-### Docker nie dziala
+## 🐛 Typowe problemy
 
-Jesli widzisz:
+### 🚫 Docker nie działa
 
-```text
+Jeśli widzisz:
+```
 failed to connect to the docker API
 ```
 
-uruchom Docker Desktop i sprawdz:
+Uruchom Docker Desktop i sprawdź:
 
 ```powershell
 docker info
 ```
 
-### Blad usuwania folderu `.git`
+### 📁 Błąd usuwania folderu `.git`
 
-Na Windowsie pliki z `.git` moga miec atrybut readonly albo byc chwilowo trzymane przez proces. Worker uzywa sprzatania z `chmod`, ale jesli problem wroci, sprawdz czy repo nie jest otwarte w innym programie.
+Na Windowsie pliki z `.git` mogą mieć atrybut readonly albo być chwilowo trzymane przez proces. Worker używa sprzątania z `chmod`, ale jeśli problem wróci, sprawdź czy repo nie jest otwarte w innym narzędziu.
 
-### Token nie dziala
+### 🔐 Token nie działa
 
-Token wysyla sie w headerze:
+Token wysyła się w headerze:
 
 ```http
 Authorization: Bearer <JWT>
 ```
 
-Jesli CLI nie znajduje tokena, zaloguj sie ponownie:
+Jeśli CLI nie znajduje tokena, zaloguj się ponownie:
 
 ```powershell
 python front/main.py -l
